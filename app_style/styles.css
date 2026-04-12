@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+html, body, [class*="css"] { 
+    font-family: 'IBM Plex Sans', sans-serif; 
+}
+
+.main { 
+    background-color: #0f0f0f; 
+}
+
+h1 { 
+    font-family: 'IBM Plex Mono', monospace !important; 
+    color: #e8e0d0 !important; 
+    letter-spacing: -1px; 
+}
+
+.stTextInput > div > div > input,
+.stSelectbox > div > div,
+.stSlider { 
+    background-color: #1a1a1a !important; 
+    color: #e8e0d0 !important; 
+    border: 1px solid #333 !important; 
+}
+
+.result-card { 
+    background: #1a1a1a; 
+    border-left: 3px solid #c8a96e; 
+    padding: 1rem 1.2rem; 
+    margin-bottom: 0.75rem; 
+    border-radius: 0 6px 6px 0; 
+}
+
+.result-card .score { 
+    font-family: 'IBM Plex Mono', monospace; 
+    color: #c8a96e; 
+    font-size: 0.85rem; 
+    margin-bottom: 0.4rem; 
+}
+
+.result-card .text { 
+    color: #b0a898; 
+    font-size: 0.9rem; 
+    line-height: 1.6; 
+}
+
+.answer-box { 
+    background: #111; 
+    border: 1px solid #c8a96e; 
+    border-radius: 6px; 
+    padding: 1.2rem 1.5rem; 
+    color: #e8e0d0; 
+    font-size: 0.95rem; 
+    line-height: 1.7; 
+    margin-top: 1rem; 
+}
+
+.tag { 
+    display: inline-block; 
+    background: #c8a96e22; 
+    color: #c8a96e; 
+    font-family: 'IBM Plex Mono', monospace; 
+    font-size: 0.75rem; 
+    padding: 2px 8px; 
+    border-radius: 3px; 
+    margin-bottom: 0.5rem; 
+}
+
+section[data-testid="stSidebar"] { 
+    background-color: #111 !important; 
+    border-right: 1px solid #222; 
+}
