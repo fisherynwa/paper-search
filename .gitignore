@@ -8,3 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
+venv
+
+# Environment
+.env
+
+# macOS
+.DS_Store
+
+# Models cache
+.cache/
+
+.Rhistory
+
+.DS_Store
