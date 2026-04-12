@@ -19,6 +19,8 @@ venv
 # Models cache
 .cache/
 
+# R
 .Rhistory
+.RData
 
 .DS_Store
