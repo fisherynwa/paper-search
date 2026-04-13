@@ -1,11 +1,9 @@
 # Semantic Search & RAG Pipeline
-![PaperSearch App](./images/app_view.png)
-
 A semantic search and question-answering system for research papers using Transformers, FAISS, and two LLMs
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-
+![PaperSearch App](./images/app_view.png)
 
 ## Architecture
 ```
