@@ -39,5 +39,5 @@ if __name__ == '__main__':
             print(f'  {textwrap.fill(r["text"][:400], width=65)}')
             print('  ' + '-' * 65)
 
-        # RAG answer
+        # RAG answerß
         print(f'\n  Answer: {textwrap.fill(engine.answer(query, top_k=args.top_k), width=65)}')

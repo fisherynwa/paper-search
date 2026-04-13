@@ -157,7 +157,7 @@ class PaperSearchEngine:
             messages=[{
                 'role': 'user',
                 'content': (
-                    f'You are a scientific assistant. Answer the question based only on the context provided.\n\n'
+                    f'You are a scientific assistant. Answer as precise as possible the question based only on the context provided. Do NOT use any outside knowledge. If the answer is not in the context, say so.\n\n'
                     f'Context:\n{context}\n\n'
                     f'Question: {query}'
                 )

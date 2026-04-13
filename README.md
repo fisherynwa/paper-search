@@ -69,7 +69,7 @@ streamlit run app.py
 
 ### Terminal interface
 ```bash
-python main.py --model BAAI/bge-large-en-v1.5 --chunk_size 150
+python main.py
 ```
 
 ## Requirements
