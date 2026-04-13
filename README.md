@@ -1,7 +1,5 @@
-![PaperSearch App](./images/app_view.png)
-
 # Semantic Search & RAG Pipeline
-
+![PaperSearch App](./images/app_view.png)
 A semantic search and question-answering system for research papers using Transformers, FAISS, and two LLMs
 
 ## Architecture
