@@ -1,6 +1,5 @@
 # Semantic Search & RAG Pipeline
-A semantic search and question answering system for research papers using transformers, FAISS (Facebook AI Similarity Search), and two LLMs.
-
+A semantic search and question-answering system for research papers using Transformers, FAISS, and two LLMs
 ![PaperSearch App](./images/app_view.png)
 
 ## Architecture
