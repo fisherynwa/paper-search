@@ -23,4 +23,8 @@ venv
 .Rhistory
 .RData
 
+
 .DS_Store
+
+# gitignore
+.gitignore

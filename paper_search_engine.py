@@ -85,7 +85,7 @@ class PaperSearchEngine:
 
     def _load_model(self):
         """Loads the tokenizer and the model specified by model_name for embedding generation."""
-        # First, the tokenizer converts raw text into token IDs that the model can understand
+        # First, the tokenizer converts raw text into token IDs that the model at hand can understand
         # e.g. "I am a student." -> [101, 1045, 2572, 1037, 3231, 1012, 102]
         # Second, the model at hand takes each token ID and produces embeddings
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -101,7 +101,7 @@ class PaperSearchEngine:
             truncation=True, # truncation = True + max_length = 128 if a text has more than 128 tokens, cut it off at 128
             max_length=self.max_length, # the maximum number of tokens allowed; if a text has more than max_length tokens, it will be truncated to fit this length
             padding=True # pads shorter sequences to the longest in the batch using token ID '0'
-            # when TRUE; "Hello"  → [101, 7592,  102,    0,   0]; "Hello world today"  → [101, 7592, 2088, 2651, 102]
+            # when TRUE; "Hello"  → [101, 7592,  102,    0,   0] (given) "Hello world today"  → [101, 7592, 2088, 2651, 102]
         )
         with torch.no_grad():
             outputs = self.model(**inputs)
@@ -151,7 +151,7 @@ class PaperSearchEngine:
             f'[Page {r["page"]}]: {r["text"]}' for r in results
         ])
         
-        # generate answer
+        # generate its answer
         response = ollama.chat(
             model='llama3.2:1b',
             messages=[{
@@ -168,13 +168,13 @@ class PaperSearchEngine:
     def answer_with_validation(self, query, top_k=3):
         """Generates an answer and validates it with a second LLM pass."""
         
-        # step 1 — retrieve relevant chunks
+        # retrieve relevant chunks
         results = self.query(query, top_k)
         context = '\n\n'.join([
             f'[Page {r["page"]}]: {r["text"]}' for r in results
         ])
         
-        # generate answer
+        # generate a answer
         answer_response = ollama.chat(
             model='llama3.2:1b',
             messages=[{
@@ -188,12 +188,12 @@ class PaperSearchEngine:
         )
         answer = answer_response['message']['content']
         
-        # validate the answer
+        # validate the generated answer
         validation_response = ollama.chat(
             model='qwen2.5:3b',
             messages=[{
                 'role': 'user', 
-                'content': f'''Rate this answer on accuracy and completeness (on the scale from 1 to 5 scale):
+                'content': f'''Rate this answer on accuracy and completeness (on a scale from 1 to 5):
 
     Context from research paper:
     {context}
