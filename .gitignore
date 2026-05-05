@@ -28,3 +28,12 @@ venv
 
 # gitignore
 .gitignore
+
+.venv/
+__pycache__/
+*.pdf
+preference_data/
+
+outputs/
+*.pyc
+.DS_Store

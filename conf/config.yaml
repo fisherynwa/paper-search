@@ -1,0 +1,17 @@
+defaults:
+  - model: default
+  - retrieval: default
+  - generation: default
+  - _self_
+ 
+pdf_url: "https://arxiv.org/pdf/1603.02754"
+ 
+benchmark:
+  auto_generate: false
+  n_questions: 10
+  path: "benchmarks/xgboost_benchmark.yaml"
+ 
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+ 

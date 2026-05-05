@@ -1,0 +1,171 @@
+{
+  "config": {
+    "model": {
+      "embedding": "BAAI/bge-large-en-v1.5",
+      "ollama": "qwen2.5:7b",
+      "validator": "llama3.2:3b"
+    },
+    "retrieval": {
+      "chunk_size": 150,
+      "overlap": 30,
+      "max_length": 128,
+      "top_k": 3,
+      "use_contextual": true,
+      "similarity_threshold": 0.0
+    },
+    "generation": {
+      "temperature": 0.1,
+      "top_p": 1.0,
+      "repeat_penalty": 1.1,
+      "seed": 42,
+      "max_tokens": 512,
+      "prompts": {
+        "qa_system": "You are a scientific assistant. Answer questions based only on the context provided.\n",
+        "contextualize": "Here is a document excerpt: {doc_preview}\nHere is a specific chunk from that document: {chunk_text}\nWrite a single short sentence (max 30 words) situating this chunk within the document. Answer only with that sentence, nothing else.\n",
+        "describe_image": "This is a figure from a scientific paper. Describe what it shows, including axis labels, trends, key values, and what conclusion it supports.\n",
+        "validate": "Rate this answer on accuracy and completeness (1-5 scale):\nContext from research paper: {context}\nQuestion: {query}\nGenerated answer: {answer}\nProvide: - Score (1-5): where 5 = fully accurate and complete - Issues: any factual errors or missing details - Confidence: high/medium/low\nFormat: Score: X/5 | Issues: ... | Confidence: ...\n",
+        "summarize": {
+          "paragraph": "Summarize this paper in clear, concise prose.\n",
+          "bullet_points": "Summarize this paper as bullet points covering the main findings.\n",
+          "eli5": "Explain this paper simply, as if to a non-expert with no technical background.\n",
+          "executive": "Give a 3-sentence executive summary of this paper.\n"
+        }
+      }
+    },
+    "pdf_url": "https://arxiv.org/pdf/1603.02754",
+    "benchmark": {
+      "auto_generate": false,
+      "n_questions": 10,
+      "path": "benchmarks/xgboost_benchmark.yaml"
+    }
+  },
+  "results": [
+    {
+      "id": "auto_1",
+      "question": "What is the name of the scalable tree boosting system described in the paper?",
+      "ground_truth": "XGBoost",
+      "answer": "The name of the scalable tree boosting system described in the paper is XGBoost.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 1.0,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_2",
+      "question": "What section of the paper reviews gradient tree boosting algorithms?",
+      "ground_truth": "Section 2.",
+      "answer": "The section that reviews gradient tree boosting algorithms is Section 2, as stated in \"[Page 2]: 2. TREE BOOSTING IN A NUTSHELL We review gradient tree boosting algorithms in this sec- tion.\"",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 1.0,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_3",
+      "question": "What is the purpose of shrinkage in XGBoost's algorithm?",
+      "ground_truth": "Shrinkage scales newly added weights by a factor \u03b7 after each step of tree boosting, reducing the influence of each individual tree and leaving space for future trees to improve the model.",
+      "answer": "Shrinkage in XGBoost's algorithm serves to further prevent overfitting. Specifically, it scales newly added weights by a factor \\(\\eta\\) after each step of tree boosting. This reduces the influence of each individual tree and leaves space for future trees to improve the model. Essentially, shrinkage acts similarly to a learning rate in stochastic optimization, helping to control the contribution of each new tree to the final model, thereby reducing the risk of overfitting.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 0.667,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_4",
+      "question": "What is the definition of the rank function rk(z) in the context of proposing candidate split points for XGBoost's approximate tree learning algorithm?",
+      "ground_truth": "The rank function rk(z) = 1 \ufffd (x,h)\u2208Dk h \ufffd (x,h)\u2208Dk,x<z h represents the proportion of instances whose feature value k is smaller than z.",
+      "answer": "The rank function \\( r_k(z) \\) in the context of proposing candidate split points for XGBoost's approximate tree learning algorithm is defined as:\n\n\\[ r_k(z) = \\frac{1}{|D_k|} \\sum_{(x_i, h_i) \\in D_k, x_i < z} h_i \\]\n\nWhere:\n- \\( D_k = \\{(x_1^k, h_1), (x_2^k, h_2), \\ldots, (x_n^k, h_n)\\} \\) represents the k-th feature values and second-order gradient statistics of each training instance.\n- \\( x_i^k \\) is the value of the k-th feature for the i-th instance.\n- \\( h_i \\) is the weight or contribution of the i-th instance (related to the second-order gradient statistic).\n- The function \\( r_k(z) \\) gives the proportion of instances whose feature value \\( k \\) is smaller than \\( z \\).\n\nThis function helps in identifying candidate split points that distribute evenly across the data, ensuring that the splits are representative and effective for the tree learning process.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 0.333,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_5",
+      "question": "What format is the data stored in within each block for efficient split finding?",
+      "ground_truth": "The data in each block is stored in the compressed column (CSC) format, with each column sorted by the corresponding feature value.",
+      "answer": "Within each block, the data is stored in the compressed column (CSC) format, with each column sorted by the corresponding feature value. This structure facilitates efficient split finding during the tree boosting process.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 1.0,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_6",
+      "question": "What block size was found to balance cache property and parallelization in the study?",
+      "ground_truth": "216 examples per block",
+      "answer": "According to the context provided, a block size of \\(2^{16}\\) examples per block was found to balance the cache property and parallelization. This conclusion is based on the comparison of various block sizes on two datasets, as shown in Figure 9.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 0.333,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_7",
+      "question": "How many instances were randomly selected for the training set from the Allstate insurance claim dataset?",
+      "ground_truth": "10M",
+      "answer": "According to the context provided, 10 million (10M) instances were randomly selected from the Allstate insurance claim dataset as the training set.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 1.0,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_8",
+      "question": "What machine did the out-of-core experiment use?",
+      "ground_truth": "one AWS c3.8xlarge machine (32 vcores, two 320 GB SSD, 60 GB RAM)",
+      "answer": "The out-of-core experiment used a single machine that was capable of processing 1.7 billion examples. Specifically, the context mentions that \"Our final method is able to process 1.7 billion examples on a single machine.\" However, it does not provide detailed specifications of this machine beyond what was required for the out-of-core computation.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 1.0,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_9",
+      "question": "Which journal published the LIBLINEAR library for large linear classification?",
+      "ground_truth": "Journal of Machine Learning Research",
+      "answer": "The LIBLINEAR library for large linear classification was published in the Journal of Machine Learning Research. Specifically, it is cited as:\n\nChang, C.-J., Hsieh, X.-R., Wang, C.-J., & Lin, C.-J. (2008). LIBLINEAR: A library for large linear classification. Journal of Machine Learning Research, 9(1), 1871\u20131874.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 1.0,
+      "issues": "parse error"
+    },
+    {
+      "id": "auto_10",
+      "question": "What is the definition of a quantile summary for weighted data according to the paper?",
+      "ground_truth": "A quantile summary for D is defined as a tuple Q(D) = (S, \u02dcr+ D, \u02dcr\u2212 D, \u02dc\u03c9D), where S = {x1, x2, \u00b7 \u00b7 \u00b7 , xk} is selected from the points in D with the properties that xi < xi+1 for all i, and x1 and xk are the minimum and maximum point in D.",
+      "answer": "According to the paper, a quantile summary for weighted data \\( Q(D) \\) is defined as a tuple:\n\n\\[ Q(D) = (S, \\tilde{r}^+_{D}, \\tilde{r}^-_{D}, \\tilde{\\omega}_D) \\]\n\nwhere:\n- \\( S = \\{x_1, x_2, \\ldots, x_k\\} \\) is a subset of points from the data set \\( D \\), with the properties that \\( x_i < x_{i+1} \\) for all \\( i \\), and \\( x_1 \\) and \\( x_k \\) are the minimum and maximum points in \\( D \\).\n- \\( \\tilde{r}^+_{D}(y) \\) is an estimate of the upper quantile function.\n- \\( \\tilde{r}^-_{D}(y) \\) is an estimate of the lower quantile function.\n- \\( \\tilde{\\omega}_D \\) is the weight of the multi-set \\( D \\), defined as the sum of weights of all points in \\( D \\):\n\n\\[ \\tilde{\\omega}_D = \\sum_{(x, w) \\in D} w \\]\n\nThis quantile summary structure allows for efficient approximate computation of quantiles over weighted data and can be integrated into distributed and streaming algorithms.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 0.667,
+      "issues": "parse error"
+    }
+  ],
+  "summary": {
+    "avg_retrieval_hit": 1.0,
+    "avg_faithfulness": 0.0,
+    "avg_completeness": 0.0,
+    "avg_clarity": 0.0,
+    "avg_consistency": 0.8
+  }
+}

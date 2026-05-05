@@ -1,240 +1,278 @@
-import os, textwrap, urllib.request
+import warnings; warnings.filterwarnings('ignore')
+import os, urllib.request
 import fitz, faiss
 import numpy as np
 import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel
 from tqdm import tqdm
-import io
-import warnings
 import ollama
+from rank_bm25 import BM25Okapi
 
-import os
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-os.environ['OMP_NUM_THREADS'] = '1'
 
 class PaperSearchEngine:
-    """
-    A search engine for research/ news papers that uses a transformer model to encode chunks of text from the paper and FAISS for similarity search.
-    
-    Args: model_name (str): the name of the transformer model to use for encoding text
-        pdf_path (str): local path to the PDF file; 
-        pdf_url (str): URL to read the PDF file directly into memory without saving to disk
-        chunk_size (int): number of words in each chunk;
-        overlap (int): number of overlapping words between consecutive chunks; 
-        max_length (int): maximum number of tokens for the transformer model input.
-    """
-    def __init__(
-        self, 
-        model_name: str, 
-        pdf_path: str = None, 
-        pdf_url: str = None, 
-        chunk_size: int = 300, 
-        overlap: int = 50, 
-        max_length: int = 128
-    ):
-        if not pdf_path and not pdf_url:
-            raise ValueError("Either pdf_path or pdf_url must be provided.")
- 
-        # configurable parameters
-        self.model_name = model_name
-        self.chunk_size = chunk_size
-        self.overlap = overlap
-        self.max_length = max_length
-        self.pdf_url  = pdf_url
-        self.pdf_path = pdf_path
-        # class attributes
-        self.chunks = self._chunk() 
-        components = self._load_model()
-        self.model = components['model']
-        self.tokenizer = components['tokenizer']
 
-        self.index = self._build_index()
-        
-    ##################################################################
-    # BEGINS: helper utilities; not part of the public class interface
-    ###################################################################
+    """Purpose: Load a research-lead article in PDF, index its content, and answer questions about it using a hybrid retrieval + LLM pipeline.
+    """
     
+    def __init__(self, model_name: str, pdf_path=None, pdf_url=None,
+                 chunk_size=150, overlap=30, max_length=128,
+                 use_contextual=True, ollama_model='qwen2.5:7b',
+                 ollama_validator='llama3.2:3b', prompts=None):
+
+        self.model_name       = model_name
+        self.chunk_size       = chunk_size
+        self.overlap          = overlap
+        self.max_length       = max_length
+        self.use_contextual   = use_contextual
+        self.ollama_model     = ollama_model
+        self.ollama_validator = ollama_validator
+        self.pdf_url          = pdf_url
+        self.pdf_path         = self._download(pdf_url) if pdf_url else pdf_path
+
+        # prompts — use defaults if not provided via Hydra
+        self.prompts = prompts or {
+            'qa_system':      'You are a scientific assistant. Answer questions based only on the context provided.',
+            'contextualize':  'Here is a document excerpt:\n{doc_preview}\n\nHere is a specific chunk:\n{chunk_text}\n\nWrite a single short sentence (max 30 words) situating this chunk within the document. Answer only with that sentence.',
+            'describe_image': 'This is a figure from a scientific paper. Describe what it shows, including axis labels, trends, key values, and what conclusion it supports.',
+            'validate':       'Rate this answer on accuracy and completeness (1-5 scale):\n\nContext:\n{context}\n\nQuestion: {query}\n\nGenerated answer: {answer}\n\nFormat: Score: X/5 | Issues: ... | Confidence: ...',
+            
+        }
+
+        # extract and chunk
+        raw_chunks = self._chunk()
+
+        # optionally enrich chunks with Qwen-generated context
+        if self.use_contextual:
+            print("Generating contextual descriptions for chunks...")
+            self.chunks = self._contextualize(raw_chunks)
+        else:
+            self.chunks = raw_chunks
+
+        # load embedding model
+        components     = self._load_model()
+        self.tokenizer = components['tokenizer']
+        self.model     = components['model']
+
+        # build FAISS index (semantic)
+        self.index = self._build_index()
+
+        # build BM25 index (lexical)
+        self.bm25 = self._build_bm25()
+
+    def __repr__(self):
+        mode = "contextual" if self.use_contextual else "standard"
+        return f"PaperSearchEngine(model='{self.model_name}', chunks={len(self.chunks)}, mode={mode})"
+
+    # ------------------------------------------------------------------ #
+    # Private helpers
+    # ------------------------------------------------------------------ #
+
+    def _download(self, url):
+        local_path = url.split('/')[-1] + '.pdf' if not url.endswith('.pdf') else url.split('/')[-1]
+        if not os.path.exists(local_path):
+            print(f'Downloading paper from {url}...')
+            urllib.request.urlretrieve(url, local_path)
+        else:
+            print(f'Already exists — size: {os.path.getsize(local_path) / 1e6:.1f} MB')
+        return local_path
+
     def _chunk(self):
-        # Splits each page into overlapping chunks
+       # Splits each page into overlapping chunks
         # e.g. a dummy page of text (15 words (one, \ldots, fifteen)) along with chunk_size=5 and overlap=2 produces the following chunks:
         # Chunk 1: one two three four five
         # Chunk 2: four five six seven eight
         # Chunk 3: seven eight nine ten eleven
         # Chunk 4: ten eleven twelve thirteen fourteen
         # Chunk 5: thirteen fourteen fifteen
-        if self.pdf_path:
-           doc = fitz.open(self.pdf_path)
-        else:
-           response = urllib.request.urlopen(self.pdf_url)
-           doc = fitz.open(stream=io.BytesIO(response.read()), filetype='pdf')
-           
+
+        doc    = fitz.open(self.pdf_path)
+        words  = []
+        for page_num, page in enumerate(doc, start=1):
+            for word in page.get_text("words"):
+                words.append((word[4], page_num))
+
         chunks = []
-        for i, page in enumerate(doc):
-            words = page.get_text().split()
-            for start in range(0, len(words), self.chunk_size - self.overlap):
-                chunk_words = words[start : start + self.chunk_size]
-                chunks.append({
-                    'text': ' '.join(chunk_words),
-                    'page': i + 1
-                })
-                if start + self.chunk_size >= len(words):
-                    break
+        # step = 150 - 30 = 120 means we start a new chunk every 120 words, creating an overlap of 30 words between consecutive chunks
+        step   = self.chunk_size - self.overlap
+        for i in range(0, len(words), step):
+            chunk_words = words[i: i + self.chunk_size]
+            if not chunk_words:
+                continue
+            text      = ' '.join(w[0] for w in chunk_words)
+            page      = chunk_words[len(chunk_words) // 2][1]
+            chunks.append({'text': text, 'page': page})
+
+        print(f'Extracted {len(chunks)} chunks.')
         return chunks
+    
+    def _contextualize(self, chunks):
+        """Prepend a short Qwen-generated context to each chunk."""
+        # Build a short document summary from first ~500 words
+        # This comes from: https://www.anthropic.com/engineering/contextual-retrieval
+        # "This chunk discusses XGBoost's sparsity-aware algorithm performance. the algorithm achieved 50x speedup"
+        doc_preview = ' '.join(c['text'] for c in chunks[:5]) # first 5 chunks as preview
+        
+        contextualized = []
+        for chunk in tqdm(chunks, desc="Contextualizing"):
+            prompt = self.prompts['contextualize'].format(
+                doc_preview=doc_preview,
+                chunk_text=chunk['text']
+            )
+            response = ollama.chat(
+                model=self.ollama_model,
+                messages=[{'role': 'user', 'content': prompt}],
+                options={"temperature": 0.0}
+            )
+            context_sentence = response['message']['content'].strip()
+            enriched_text    = f"{context_sentence} {chunk['text']}"
+            contextualized.append({'text': enriched_text, 'page': chunk['page']})
+
+        return contextualized
 
     def _load_model(self):
-        """Loads the tokenizer and the model specified by model_name for embedding generation."""
         # First, the tokenizer converts raw text into token IDs that the model at hand can understand
         # e.g. "I am a student." -> [101, 1045, 2572, 1037, 3231, 1012, 102]
         # Second, the model at hand takes each token ID and produces embeddings
+        print(f'Loading model: {self.model_name}')
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         model     = AutoModel.from_pretrained(self.model_name)
         model.eval()
         return {'tokenizer': tokenizer, 'model': model}
 
-    def _embed_text(self, text):
-        """Converts a text string into a normalised embedding vector."""
-        inputs = self.tokenizer(
-            text,
-            return_tensors='pt', # return PyTorch tensors
-            truncation=True, # truncation = True + max_length = 128 if a text has more than 128 tokens, cut it off at 128
-            max_length=self.max_length, # the maximum number of tokens allowed; if a text has more than max_length tokens, it will be truncated to fit this length
-            padding=True # pads shorter sequences to the longest in the batch using token ID '0'
+    def _embed_text(self, texts):
+        encoded = self.tokenizer(
+            texts, 
+            padding=True, # pads shorter sequences to the longest in the batch using token ID '0'
             # when TRUE; "Hello"  → [101, 7592,  102,    0,   0] (given) "Hello world today"  → [101, 7592, 2088, 2651, 102]
+            truncation=True,  # truncation = True + max_length = 128 if a text has more than 128 tokens, cut it off at 128
+            max_length=self.max_length,
+            return_tensors='pt' # return PyTorch tensors
         )
         with torch.no_grad():
-            outputs = self.model(**inputs)
-            
-        token_emb     = outputs.last_hidden_state # shape: (batch, num_tokens, hidden_dim) — one vector per token
-        mask_expanded = inputs['attention_mask'].unsqueeze(-1).float() # attention_mask is a binary tensor that indicates which tokens are actual text (1) and which are padding (0)
-        embedding     = (token_emb * mask_expanded).sum(1) / mask_expanded.sum(1) 
-        embedding     = F.normalize(embedding, p=2, dim=1) # Scales the vector so its length equals exactly 1
-        return embedding.squeeze().numpy().astype('float32')
+            output    = self.model(**encoded)
+            embedding = output.last_hidden_state[:, 0, :] # extracts the [CLS] token embedding; [CLS] Hello world today [SEP]
+            embedding = F.normalize(embedding, p=2, dim=1)
+        return embedding.numpy()
 
     def _build_index(self):
-        """Encodes all chunks and builds a FAISS index for similarity search."""
-        # encode every chunk into an embedding vector
-        embeddings = np.array(
-            [self._embed_text(c['text']) for c in tqdm(self.chunks, desc='Encoding')],
-            dtype='float32'
-        )
-        
-        # build FAISS index; cosine similarity
-        dim   = embeddings.shape[1]
-        index = faiss.IndexFlatIP(dim)
+        print('Building FAISS index...')
+        texts      = [c['text'] for c in self.chunks]
+        batch_size = 32
+        all_embeds = []
+        for i in tqdm(range(0, len(texts), batch_size), desc="Embedding"):
+            batch      = texts[i: i + batch_size]
+            all_embeds.append(self._embed_text(batch))
+        embeddings = np.vstack(all_embeds).astype('float32')
+        index      = faiss.IndexFlatIP(embeddings.shape[1])
         index.add(embeddings)
-        
-        print(f'Index built — {index.ntotal} vectors stored')
+        print(f'FAISS index built with {index.ntotal} vectors.')
         return index
-    
-    ##################################################################
-    # public interface
-    ##################################################################
 
-    def query(self, query, top_k=3):
-        """Takes a query string, encodes it, and retrieves the top_k most similar chunks from the paper."""
-        query_embedding = self._embed_text(query) # encode the query into an embedding vector using the same model and tokenizer as for the chunks
-        xq = np.array([query_embedding], dtype='float32') # FAISS expects a 2D array of shape (n_queries, embedding_dim); here we have just one query, so we wrap it in an extra list to make it 2D
-        scores, indices = self.index.search(xq, top_k)
-        return [
-            {'text': self.chunks[i]['text'], 'page': self.chunks[i]['page'], 'score': float(scores[0][r])}
-            for r, i in enumerate(indices[0])
-        ]
+    def _build_bm25(self):
+        """Build a BM25 index over chunk texts for lexical retrieval."""
+        print('Building BM25 index...')
+        tokenized = [c['text'].lower().split() for c in self.chunks]
+        return BM25Okapi(tokenized)
 
-    def answer(self, query, top_k=3):
-        """Retrieves top_k chunks and generates a direct answer using a local LLM."""
-    
-        # retrieve relevant chunks
+    # ------------------------------------------------------------------ #
+    # Public interface
+    # ------------------------------------------------------------------ #
+
+    def _semantic_search(self, query, top_k):
+        """FAISS semantic search — returns list of (chunk_idx, score)."""
+        q_embed = self._embed_text([query]).astype('float32')
+        scores, indices = self.index.search(q_embed, top_k)
+        return list(zip(indices[0], scores[0]))
+
+    def _bm25_search(self, query, top_k):
+        """BM25 lexical search — returns list of (chunk_idx, score)."""
+        tokenized_query = query.lower().split()
+        scores          = self.bm25.get_scores(tokenized_query)
+        top_indices     = np.argsort(scores)[::-1][:top_k]
+        return [(idx, scores[idx]) for idx in top_indices]
+
+    def _rank_fusion(self, semantic_hits, bm25_hits, top_k, k=60):
+        """Reciprocal Rank Fusion to merge semantic and BM25 results."""
+        scores = {}
+        for rank, (idx, _) in enumerate(semantic_hits):
+            scores[idx] = scores.get(idx, 0) + 1 / (k + rank + 1)
+        for rank, (idx, _) in enumerate(bm25_hits):
+            scores[idx] = scores.get(idx, 0) + 1 / (k + rank + 1)
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return ranked[:top_k]
+
+    def query(self, query_text, top_k=3):
+        """Hybrid retrieval: semantic + BM25 with rank fusion."""
+        semantic_hits = self._semantic_search(query_text, top_k * 2)
+        bm25_hits     = self._bm25_search(query_text, top_k * 2)
+        fused         = self._rank_fusion(semantic_hits, bm25_hits, top_k)
+        results = []
+        for idx, score in fused:
+            results.append({
+                'text':  self.chunks[idx]['text'],
+                'page':  self.chunks[idx]['page'],
+                'score': round(float(score), 4)
+            })
+        return results
+
+    def chat(self, query, history, top_k=3, temperature=0.1):
+        """Multi-turn conversational Q&A with retrieval context."""
         results = self.query(query, top_k)
         context = '\n\n'.join([
             f'[Page {r["page"]}]: {r["text"]}' for r in results
         ])
-        
-        # generate its answer
+        messages = [
+            {
+                'role': 'system',
+                'content': (
+                    self.prompts['qa_system'] + f'\n\nContext:\n{context}'
+                )
+            }
+        ] + history + [{'role': 'user', 'content': query}]
+
         response = ollama.chat(
-            model='llama3.2:1b',
-            messages=[{
-                'role': 'user',
-                'content': (
-                    f'You are a scientific assistant. Answer as precise as possible the question based only on the context provided. Do NOT use any outside knowledge. If the answer is not in the context, say so.\n\n'
-                    f'Context:\n{context}\n\n'
-                    f'Question: {query}'
-                )
-            }]
+            model=self.ollama_model,
+            messages=messages,
+            options={"temperature": temperature}
         )
-        return response['message']['content']
+        return response['message']['content'], results
 
-    def answer_with_validation(self, query, top_k=3):
-        """Generates an answer and validates it with a second LLM pass."""
-        
-        # retrieve relevant chunks
+    def answer_with_validation(self, query, top_k=3, temperature=0.1):
+        """Single-turn Q&A with a second LLM validation pass."""
         results = self.query(query, top_k)
         context = '\n\n'.join([
             f'[Page {r["page"]}]: {r["text"]}' for r in results
         ])
-        
-        # generate a answer
+
+        # generation
         answer_response = ollama.chat(
-            model='llama3.2:1b',
+            model=self.ollama_model,
             messages=[{
                 'role': 'user',
-                'content': (
-                    f'You are a scientific assistant. Answer as precise as possilbe the question based only on the context provided. Do NOT use any outside knowledge. If the answer is not in the context, say so.\n\n'
-                    f'Context:\n{context}\n\n'
-                    f'Question: {query}'
-                )
-            }]
+                'content': self.prompts['qa_system'] + f'\n\nContext:\n{context}\n\nQuestion: {query}'
+            }],
+            options={"temperature": temperature}
         )
         answer = answer_response['message']['content']
-        
-        # validate the generated answer
+
+        # validation
         validation_response = ollama.chat(
-            model='qwen2.5:3b',
+            model=self.ollama_validator,
             messages=[{
-                'role': 'user', 
-                'content': f'''Rate this answer on accuracy and completeness (on a scale from 1 to 5):
-
-    Context from research paper:
-    {context}
-
-    Question: {query}
-
-    Generated answer: {answer}
-
-    Provide:
-    - Score (1-5): where 5 = fully accurate and complete, 1 = inaccurate or missing key info
-    - Issues: any factual errors or important missing details
-    - Confidence: high/medium/low based on context quality
-
-    Format: Score: X/5 | Issues: ... | Confidence: ...'''
-            }]
+                'role': 'user',
+                'content': self.prompts['validate'].format(
+                    context=context,
+                    query=query,
+                    answer=answer
+                )
+            }],
+            options={"temperature": 0.0}
         )
-        
+
         return {
-            'answer': answer,
-            'validation': validation_response['message']['content'],
+            'answer':      answer,
+            'validation':  validation_response['message']['content'],
             'chunks_used': len(results),
-            'chunks': results
+            'chunks':      results
         }
-
-## This function is not part of the PaperSearchEngine class; it is a standalone utility to compare results from two different engines on the same query.
-def compare_engines(engine1, engine2, query, top_k=3):
-    """Compares retrieval results between two PaperSearchEngine instances on the same query."""
-    results1 = engine1.query(query, top_k)
-    results2 = engine2.query(query, top_k)
-
-    print(f'\nQuery: "{query}"')
-    print('=' * 70)
-
-    for r, (res1, res2) in enumerate(zip(results1, results2), 1):
-        print(f'\nRank {r}')
-        print(f'[{engine1.model_name}]')
-        print(f'  Score : {res1["score"]:.4f}  |  Page: {res1["page"]}')
-        print(f'  Text  : {textwrap.fill(res1["text"][:500], width=65)}')
-        print(f'[{engine2.model_name}]')
-        print(f'  Score : {res2["score"]:.4f}  |  Page: {res2["page"]}')
-        print(f'  Text  : {textwrap.fill(res2["text"][:500], width=65)}')
-        print('-' * 70)
-        
-

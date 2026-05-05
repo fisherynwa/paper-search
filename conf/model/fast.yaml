@@ -1,0 +1,4 @@
+# conf/model/fast.yaml
+embedding: "BAAI/bge-small-en-v1.5"
+ollama: "qwen2.5:3b"
+validator: "qwen2.5:3b"

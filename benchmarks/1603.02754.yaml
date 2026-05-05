@@ -1,0 +1,54 @@
+pdf_url: https://arxiv.org/pdf/1603.02754
+questions:
+- answer: XGBoost is a scalable tree boosting system used by data scientists to achieve
+    state-of-the-art results on many machine learning challenges.
+  id: auto_1
+  question: What is XGBoost and what problem does it solve?
+- answer: The paper covers sections on reviewing tree boosting and introducing a regularized
+    objective (Sec. 2), describing split finding methods and system design including
+    experimental results (Sec. 3 and Sec. 4), discussing related work (Sec. 5), and
+    providing detailed end-to-end evaluations (Sec. 6). The improvement mentioned
+    is the proposal of a regularized learning objective.
+  id: auto_2
+  question: What are the main sections covered in this paper, and what is the improvement
+    mentioned for tree boosting algorithms?
+- answer: Shrinkage and column (feature) subsampling.
+  id: auto_3
+  question: What are the two additional techniques used in XGBoost to prevent overfitting
+    besides regularized objective?
+- answer: "The goal is to find candidate split points {sk1, sk2, \xB7 \xB7 \xB7 skl}\
+    \ such that |rk(sk,j) \u2212 rk(sk,j+1)| < \u03F5, with sk1 = min i xik and skl\
+    \ = max i xik. Mathematically, the rank function rk(z) is defined as rk(z) = 1\
+    \ \uFFFD (x,h)\u2208Dk h \uFFFD (x,h)\u2208Dk,x<z h."
+  id: auto_4
+  question: What is the goal of finding candidate split points in XGBoost's approximate
+    tree learning algorithm, and how are they defined mathematically?
+- answer: Data in each block is stored in the compressed column (CSC) format, with
+    each column sorted by the corresponding feature value. This input data layout
+    only needs to be computed once before training and can be reused in later iterations.
+  id: auto_5
+  question: What format is used to store data in each block for efficient split finding
+    in XGBoost, and how is it utilized during training?
+- answer: 216 examples per block
+  id: auto_6
+  question: What block size is recommended for balancing cache properties and parallelization
+    in XGBoost?
+- answer: 10M instances
+  id: auto_7
+  question: What is the size of the training set used in the experiment with the Allstate
+    dataset?
+- answer: XGBoost runs faster than pGBRT, which only supports an approximate algorithm
+    while XGBoost uses the exact greedy algorithm.
+  id: auto_8
+  question: How does XGBoost perform compared to pGBRT in terms of speed and algorithmic
+    approach?
+- answer: LIBLINEAR is a library for large linear classification.
+  id: auto_9
+  question: What is LIBLINEAR used for according to the reference material?
+- answer: "A quantile summary for D is defined as a tuple Q(D) = (S, \u02DCr+ D, \u02DC\
+    r\u2212 D, \u02DC\u03C9D), where S = {x1, x2, \xB7 \xB7 \xB7 , xk} is a subset\
+    \ of points from D with the properties that xi < xi+1 for all i, and x1 and xk\
+    \ are the minimum and maximum points in D respectively."
+  id: auto_10
+  question: What does the quantile summary of weighted data consist of according to
+    the definition given?

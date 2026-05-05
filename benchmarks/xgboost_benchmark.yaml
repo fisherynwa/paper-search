@@ -1,0 +1,62 @@
+# benchmarks/xgboost_benchmark.yaml
+# Static benchmark for: XGBoost: A Scalable Tree Boosting System
+# arxiv: https://arxiv.org/pdf/1603.02754
+# Instructions: review and correct auto-generated answers before using
+
+pdf_url: "https://arxiv.org/pdf/1603.02754"
+
+questions:
+  - id: q1
+    question: "How does XGBoost handle missing values?"
+    answer: "XGBoost learns a default direction for missing values during training using a sparsity-aware algorithm."
+    relevant_pages: [4, 5]
+
+  - id: q2
+    question: "What is the regularized objective function in XGBoost?"
+    answer: "XGBoost uses a regularized objective that combines a differentiable loss function with a regularization term penalizing model complexity via the number of leaves and leaf weights."
+    relevant_pages: [2, 3]
+
+  - id: q3
+    question: "How does XGBoost achieve parallelism?"
+    answer: "XGBoost parallelizes the tree construction by sorting and scanning features in parallel across all available threads."
+    relevant_pages: [4]
+
+  - id: q4
+    question: "What is the approximate tree learning algorithm in XGBoost?"
+    answer: "XGBoost proposes an approximate algorithm that uses quantile sketches to find candidate split points, reducing computation while maintaining accuracy."
+    relevant_pages: [3, 4]
+
+  - id: q5
+    question: "What is shrinkage in XGBoost?"
+    answer: "Shrinkage scales newly added tree weights by a learning rate after each boosting step, reducing the influence of individual trees and leaving room for future trees to improve."
+    relevant_pages: [5]
+
+  - id: q6
+    question: "What is column subsampling in XGBoost?"
+    answer: "XGBoost employs column subsampling at both the tree and level layers, which helps prevent overfitting and speeds up the parallel evaluation of splits."
+    relevant_pages: [5]
+
+  - id: q7
+    question: "How does the Weighted Quantile Sketch algorithm function?"
+    answer: "It is a distributed procedure that handles weighted data by finding candidate split points such that the sum of weights between candidates is roughly equal."
+    relevant_pages: [4, 5]
+
+  - id: q8
+    question: "What is the role of the 'Block' structure in XGBoost's system design?"
+    answer: "XGBoost stores data in an in-memory unit called a block, where data is stored in a sorted compressed column (CSC) format to enable efficient parallel split finding."
+    relevant_pages: [6, 7]
+
+  - id: q9
+    question: "How does XGBoost optimize for cache-aware fetching?"
+    answer: "It uses a cache-aware prefetching algorithm to allocate an internal buffer for each thread, fetching gradient statistics into the buffer to minimize non-contiguous memory access."
+    relevant_pages: [7, 8]
+
+  - id: q10
+    question: "What is the benefit of 'Out-of-Core' computation in XGBoost?"
+    answer: "It allows the system to process datasets larger than the available main memory by utilizing disk space, employing block compression and block sharding to maximize I/O throughput."
+    relevant_pages: [8, 9]
+
+  - id: q11
+    question: "How is the split gain mathematically calculated in XGBoost?"
+    answer: "The gain is calculated using the score of the left and right child nodes minus the score of the parent node, further reduced by a regularization parameter (gamma) to control tree growth."
+    relevant_pages: [3]

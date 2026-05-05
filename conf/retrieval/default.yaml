@@ -1,0 +1,9 @@
+# conf/retrieval/default.yaml
+# The following values were obtained based on my bechmarking -- on the paper "XGBoost: A Scalable Tree Boosting System" (https://arxiv.org/pdf/1603.02754.pdf) -- using the `Benchmark` class. The values are chosen to balance retrieval quality and computational efficiency, but they can be further tuned based on specific use cases and hardware capabilities.
+# All experiments were conducted on a machine with 16GB RAM and NO GPU
+chunk_size: 150
+overlap: 30
+max_length: 128
+top_k: 5
+use_contextual: true
+similarity_threshold: 0.0

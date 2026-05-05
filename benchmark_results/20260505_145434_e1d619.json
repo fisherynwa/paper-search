@@ -1,0 +1,183 @@
+{
+  "config": {
+    "model": {
+      "embedding": "BAAI/bge-large-en-v1.5",
+      "ollama": "qwen2.5:7b",
+      "validator": "llama3.2:3b"
+    },
+    "retrieval": {
+      "chunk_size": 150,
+      "overlap": 30,
+      "max_length": 128,
+      "top_k": 3,
+      "use_contextual": true,
+      "similarity_threshold": 0.0
+    },
+    "generation": {
+      "temperature": 0.1,
+      "top_p": 1.0,
+      "repeat_penalty": 1.1,
+      "seed": 42,
+      "max_tokens": 512,
+      "prompts": {
+        "qa_system": "You are a scientific assistant. Answer questions based only on the context provided.\n",
+        "contextualize": "Here is a document excerpt: {doc_preview}\nHere is a specific chunk from that document: {chunk_text}\nWrite a single short sentence (max 30 words) situating this chunk within the document. Answer only with that sentence, nothing else.\n",
+        "describe_image": "This is a figure from a scientific paper. Describe what it shows, including axis labels, trends, key values, and what conclusion it supports.\n",
+        "validate": "Rate this answer on accuracy and completeness (1-5 scale):\nContext from research paper: {context}\nQuestion: {query}\nGenerated answer: {answer}\nProvide: - Score (1-5): where 5 = fully accurate and complete - Issues: any factual errors or missing details - Confidence: high/medium/low\nFormat: Score: X/5 | Issues: ... | Confidence: ...\n",
+        "summarize": {
+          "paragraph": "Summarize this paper in clear, concise prose.\n",
+          "bullet_points": "Summarize this paper as bullet points covering the main findings.\n",
+          "eli5": "Explain this paper simply, as if to a non-expert with no technical background.\n",
+          "executive": "Give a 3-sentence executive summary of this paper.\n"
+        }
+      }
+    },
+    "pdf_url": "https://arxiv.org/pdf/1603.02754",
+    "benchmark": {
+      "auto_generate": false,
+      "n_questions": 10,
+      "path": "benchmarks/xgboost_benchmark.yaml"
+    }
+  },
+  "results": [
+    {
+      "id": "q1",
+      "question": "How does XGBoost handle missing values?",
+      "ground_truth": "XGBoost learns a default direction for missing values during training using a sparsity-aware algorithm.",
+      "answer": "XGBoost handles missing values through a sparsity-aware algorithm that is designed to be efficient and effective for both dense and sparse data. Here are the key points on how it manages missing values:\n\n1. **Unified Handling of Sparsity Patterns**: Unlike many existing tree learning algorithms which may only optimize for dense data or require specific procedures for handling certain cases (like categorical encoding), XGBoost can handle all sparsity patterns in a unified manner.\n\n2. **Optimized for Non-Missing Entries**: The algorithm is designed to exploit the sparsity by visiting only non-missing entries, making the computation complexity linear with respect to the number of non-missing entries in the input data. This means it skips over missing values during the tree construction process, which can significantly reduce computational overhead.\n\n3. **Default Direction for Missing Values**: For each tree node, XGBoost introduces a default direction that is used when a value is missing. The algorithm learns these default directions from the data, allowing it to make decisions on how to handle missing entries effectively during the splitting process.\n\n4. **Algorithmic Efficiency**: The sparsity-aware approach allows for faster computation compared to traditional methods. For instance, in one example provided, XGBoost was found to run 50 times faster than a naive implementation when dealing with sparse data.\n\n5. **Flexible Handling of User-Specified Values**: In cases where the non-presence (or missingness) is represented by a user-specified value rather than actual missing values, the algorithm can be adapted to handle this scenario by limiting the enumeration only to consistent solutions.\n\nOverall, XGBoost's approach ensures that it can efficiently manage and utilize sparse data while maintaining performance, making it particularly well-suited for datasets with many missing or zero-valued entries.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 5,
+      "completeness": 5,
+      "clarity": 5,
+      "consistency": 0.333,
+      "issues": ""
+    },
+    {
+      "id": "q2",
+      "question": "What is the regularized objective function in XGBoost?",
+      "ground_truth": "XGBoost uses a regularized objective that combines a differentiable loss function with a regularization term penalizing model complexity via the number of leaves and leaf weights.",
+      "answer": "The regularized objective function in XGBoost is given by:\n\n\\[ L(\\phi) = \\sum_{i} l(\\hat{y}_i, y_i) + \\sum_{k} \\mathcal{P}(f_k) \\]\n\nWhere:\n- \\( l(\\hat{y}_i, y_i) \\) is a differentiable convex loss function that measures the difference between the prediction \\(\\hat{y}_i\\) and the target \\(y_i\\).\n- The second term \\(\\mathcal{P}(f_k)\\) penalizes the complexity of the model (specifically the regression tree functions). It is defined as:\n\n\\[ \\mathcal{P}(f) = \\gamma T + \\frac{1}{2} \\lambda \\|w\\|^2 \\]\n\nHere, \\(T\\) is the number of leaves in the tree, and \\(\\|w\\|\\) represents the magnitude of the weights associated with the leaf nodes. The parameters \\(\\gamma\\) and \\(\\lambda\\) are regularization parameters that control the trade-off between model complexity and prediction error.\n\nThis regularized objective function helps to smooth the final learned weights and avoid overfitting by penalizing complex models.",
+      "retrieval_hit": 0.5,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 0.333,
+      "issues": "parse error"
+    },
+    {
+      "id": "q3",
+      "question": "How does XGBoost achieve parallelism?",
+      "ground_truth": "XGBoost parallelizes the tree construction by sorting and scanning features in parallel across all available threads.",
+      "answer": "XGBoost achieves parallelism through several mechanisms:\n\n1. **Column Sampling for Parallelization**: This technique borrows from Random Forests and involves sampling columns (features) to enable parallel processing of different subsets of features during the tree construction process.\n\n2. **Out-of-Core Computation with Disk I/O Optimization**:\n   - Data is divided into multiple blocks that are stored on disk.\n   - An independent thread pre-fetches these blocks into main memory buffers, allowing computation to occur concurrently with disk reading.\n   - Block Compression: Each block is compressed by columns and decompressed on the fly by an independent thread. This helps in reducing the overhead associated with disk I/O.\n\n3. **Sparsity-Aware Learning**: XGBoost handles various sparsity patterns efficiently, which can lead to significant performance improvements when dealing with sparse data.\n\n4. **System-Level Improvements**:\n   - The paper mentions that XGBoost improves on two unexplored system directions, likely referring to optimizations at the hardware and software level to better utilize available resources.\n   - Techniques such as cache-aware prefetching are mentioned as beneficial for certain parallelization strategies.\n\nThese techniques collectively enable XGBoost to scale efficiently across multiple machines and handle large datasets effectively.",
+      "retrieval_hit": 0.0,
+      "faithfulness": 3,
+      "completeness": 2,
+      "clarity": 4,
+      "consistency": 0.333,
+      "issues": ""
+    },
+    {
+      "id": "q4",
+      "question": "What is the approximate tree learning algorithm in XGBoost?",
+      "ground_truth": "XGBoost proposes an approximate algorithm that uses quantile sketches to find candidate split points, reducing computation while maintaining accuracy.",
+      "answer": "The context provided does not explicitly detail the exact nature of the approximate tree learning algorithm used in XGBoost. However, it mentions that due to the computational demands of the exact greedy algorithm for split finding, an approximate algorithm is necessary.\n\nFrom the information given:\n\n- The exact greedy algorithm enumerates over all possible splits on all features, which can be computationally demanding.\n- An approximate algorithm is needed to handle this efficiently.\n\nWhile the specific details of the approximate tree learning algorithm in XGBoost are not provided in the context, it can be inferred that XGBoost uses an approximate method to find good splits without having to enumerate over every possible split point. This approximation likely involves heuristics or sampling techniques to reduce computational complexity while still aiming for effective splitting criteria.\n\nFor a more precise understanding of the approximate algorithm used by XGBoost, you would need to refer to the detailed documentation or research papers specifically about XGBoost's implementation.",
+      "retrieval_hit": 0.5,
+      "faithfulness": 2,
+      "completeness": 1,
+      "clarity": 3,
+      "consistency": 0.333,
+      "issues": ""
+    },
+    {
+      "id": "q5",
+      "question": "What is shrinkage in XGBoost?",
+      "ground_truth": "Shrinkage scales newly added tree weights by a learning rate after each boosting step, reducing the influence of individual trees and leaving room for future trees to improve.",
+      "answer": "Shrinkage in XGBoost, as introduced by Friedman, scales newly added weights by a factor \\(\\eta\\) after each step of tree boosting. This technique reduces the influence of each individual tree and leaves space for future trees to improve the model. Essentially, shrinkage acts similarly to a learning rate in stochastic optimization methods, helping to prevent overfitting by not allowing any single tree to have too much impact on the final model.",
+      "retrieval_hit": 0.0,
+      "faithfulness": 4,
+      "completeness": 5,
+      "clarity": 5,
+      "consistency": 1.0,
+      "issues": ""
+    },
+    {
+      "id": "q6",
+      "question": "What is column subsampling in XGBoost?",
+      "ground_truth": "XGBoost employs column subsampling at both the tree and level layers, which helps prevent overfitting and speeds up the parallel evaluation of splits.",
+      "answer": "Column subsampling in XGBoost refers to the technique of selecting a subset of columns (features) for consideration when finding split points during the tree construction process. This method helps prevent overfitting by reducing the dependence on any single feature, and it can also speed up computation.\n\nIn more detail, column subsampling works as follows:\n- Instead of considering all features at each split point, a subset of columns is randomly selected.\n- The algorithm then finds the best split among these selected columns.\n- This process helps in creating more diverse trees, which can improve generalization and reduce overfitting.\n\nThe benefits of column subsampling include:\n1. Reducing computational cost by considering fewer features at each step.\n2. Preventing overfitting by not relying too heavily on any single feature.\n3. Improving the robustness of the model by encouraging the use of a variety of features.\n\nIn XGBoost, this technique can be controlled via parameters such as `colsample_bytree` and `colsample_bylevel`, which specify the fraction of columns to consider at each tree construction step or level, respectively.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 4,
+      "completeness": 5,
+      "clarity": 5,
+      "consistency": 0.667,
+      "issues": ""
+    },
+    {
+      "id": "q7",
+      "question": "How does the Weighted Quantile Sketch algorithm function?",
+      "ground_truth": "It is a distributed procedure that handles weighted data by finding candidate split points such that the sum of weights between candidates is roughly equal.",
+      "answer": "The Weighted Quantile Sketch algorithm functions by extending existing quantile summary structures to handle weighted data while maintaining theoretical guarantees on accuracy. Here\u2019s how it works:\n\n1. **Data Structure**: The algorithm introduces a new data structure called a \"weighted quantile summary\" that can store and process weighted data points.\n\n2. **Merge Operation**: This operation combines two summaries with approximation errors \u03f51 and \u03f52 into one, resulting in a merged summary with an approximation error of max(\u03f51, \u03f52). This allows for efficient aggregation of summaries from different parts of the dataset or different nodes in a distributed system.\n\n3. **Prune Operation**: This operation reduces the number of elements in the summary to b+1 while changing the approximation error from \u03f5 to \u03f5 + 1/b. The prune operation helps in managing memory and computational resources by reducing the size of the summary without significantly degrading accuracy.\n\n4. **Handling Weighted Data**: Unlike traditional quantile summaries, which handle unweighted data points uniformly, this algorithm accounts for weights (wi) associated with each data point (xi). This means that when merging or pruning, the algorithm considers these weights to ensure that more significant contributions are appropriately represented in the summary.\n\n5. **Guaranteed Accuracy**: The merge and prune operations in the weighted quantile summary maintain a certain accuracy level, similar to those in the GK summary. This theoretical guarantee is crucial for ensuring reliable performance across different applications.\n\n6. **Integration with Existing Frameworks**: Because the new algorithm supports the same merge and prune operations as the GK summary, it can be seamlessly integrated into existing distributed and streaming quantile computing frameworks used by XGBoost and other systems that rely on these operations.\n\nBy providing a robust solution for handling weighted data in approximate quantile queries, this algorithm enhances the capabilities of XGBoost and similar systems to process complex datasets more effectively.",
+      "retrieval_hit": 0.5,
+      "faithfulness": 5,
+      "completeness": 4,
+      "clarity": 5,
+      "consistency": 0.333,
+      "issues": ""
+    },
+    {
+      "id": "q8",
+      "question": "What is the role of the 'Block' structure in XGBoost's system design?",
+      "ground_truth": "XGBoost stores data in an in-memory unit called a block, where data is stored in a sorted compressed column (CSC) format to enable efficient parallel split finding.",
+      "answer": "The block structure in XGBoost's system design serves multiple roles to enhance performance and scalability:\n\n1. **Parallel Split Finding**: The block structure allows for parallel processing during the split finding step, which is crucial for speedup when dealing with large datasets. Each block can be processed independently by different threads or machines.\n\n2. **Column Subsampling**: It supports column subsampling, making it easier to select a subset of columns within each block, which can further enhance computational efficiency and reduce memory usage.\n\n3. **Cache-Aware Access**: The block structure optimizes cache utilization, reducing the overhead associated with accessing gradient statistics by row index in an ordered manner. This is particularly beneficial for local proposal algorithms that generate candidates frequently at each branch.\n\n4. **Approximate Algorithms Optimization**: For approximate algorithms, using blocks helps reduce time complexity from \\(O(Kd\\|x\\|_0 \\log q)\\) to \\(O(Kd\\|x\\|_0 + \\|x\\|_0 \\log B)\\), where \\(B\\) is the maximum number of rows in each block. This reduction saves an additional log factor, which becomes significant for large datasets.\n\n5. **Distributed Computing**: Blocks can be distributed across multiple machines or stored on disk in out-of-core settings, enabling XGBoost to handle very large datasets that exceed the memory capacity of a single machine.\n\nOverall, the block structure is integral to XGBoost's ability to scale efficiently and effectively across various applications and dataset sizes.",
+      "retrieval_hit": 0.5,
+      "faithfulness": 4,
+      "completeness": 4,
+      "clarity": 5,
+      "consistency": 0.333,
+      "issues": ""
+    },
+    {
+      "id": "q9",
+      "question": "How does XGBoost optimize for cache-aware fetching?",
+      "ground_truth": "It uses a cache-aware prefetching algorithm to allocate an internal buffer for each thread, fetching gradient statistics into the buffer to minimize non-contiguous memory access.",
+      "answer": "XGBoost optimizes for cache-aware fetching through a specific algorithm that alleviates immediate read/write dependency issues. Specifically, they use a cache-aware prefetching approach where:\n\n1. **Internal Buffer Allocation**: An internal buffer is allocated in each thread.\n2. **Gradient Statistics Fetching**: The gradient statistics are fetched into this internal buffer.\n3. **Mini-batch Accumulation**: Accumulation of the data happens in a mini-batch manner.\n\nThis method changes the direct read/write dependency to a longer dependency, which helps reduce runtime overhead when dealing with large numbers of rows. This approach is particularly beneficial when the gradient statistics do not fit into the CPU cache, thereby reducing cache misses and improving overall performance.",
+      "retrieval_hit": 0.0,
+      "faithfulness": 4,
+      "completeness": 4,
+      "clarity": 5,
+      "consistency": 0.333,
+      "issues": ""
+    },
+    {
+      "id": "q10",
+      "question": "What is the benefit of 'Out-of-Core' computation in XGBoost?",
+      "ground_truth": "It allows the system to process datasets larger than the available main memory by utilizing disk space, employing block compression and block sharding to maximize I/O throughput.",
+      "answer": "The benefit of out-of-core computation in XGBoost, as discussed in the context provided, is that it enhances scalable learning by improving disk I/O efficiency. Specifically:\n\n1. **Utilizing Disk Space**: It allows for handling data that does not fit into main memory by dividing the data into multiple blocks and storing each block on disk.\n\n2. **Concurrency with Computation**: An independent thread pre-fetches the next block of data into a main memory buffer while computation is happening, allowing computation to occur concurrently with disk reading.\n\n3. **Reducing Disk I/O Overhead**: While this helps manage large datasets, reducing the overhead and increasing the throughput of disk I/O are crucial for performance. The context mentions that disk reading takes most of the computation time, so optimizing this process is essential.\n\n4. **Block Compression**: This technique compresses blocks by columns to trade some decompression computation with the cost of disk reading, achieving a compression ratio of roughly 26% to 29%.\n\n5. **Block Sharding**: Storing data on multiple disks and using prefetching threads for each disk helps in managing large datasets more efficiently.\n\nOverall, out-of-core computation enables XGBoost to handle larger-than-memory datasets by effectively utilizing disk space and optimizing the interaction between disk I/O and computational processes.",
+      "retrieval_hit": 0.0,
+      "faithfulness": 4,
+      "completeness": 4,
+      "clarity": 4,
+      "consistency": 0.333,
+      "issues": ""
+    },
+    {
+      "id": "q11",
+      "question": "How is the split gain mathematically calculated in XGBoost?",
+      "ground_truth": "The gain is calculated using the score of the left and right child nodes minus the score of the parent node, further reduced by a regularization parameter (gamma) to control tree growth.",
+      "answer": "In XGBoost, the split gain for a candidate split is calculated using a formula that balances the reduction in loss from splitting the data against the complexity penalty. The mathematical expression provided in the context is:\n\n\\[ \\text{gain} = -\\left( \\frac{\\sum_{i \\in I_L} g_i}{\\sum_{i \\in I_L} h_i} + \\lambda \\right) - \\left( \\frac{\\sum_{i \\in I_R} g_i}{\\sum_{i \\in I_R} h_i} + \\lambda \\right) + \\left( \\frac{\\sum_{i \\in I} g_i}{\\sum_{i \\in I} h_i} + \\lambda \\right) \\]\n\nWhere:\n- \\(I_L\\) and \\(I_R\\) are the sets of instances in the left and right child nodes, respectively.\n- \\(g_i\\) is the gradient (first-order derivative of the loss function with respect to the prediction for instance \\(i\\)).\n- \\(h_i\\) is the hessian (second-order derivative of the loss function with respect to the prediction for instance \\(i\\)).\n- \\(\\lambda\\) is a regularization parameter that helps prevent overfitting.\n\nThis formula can be broken down as follows:\n1. Calculate the weighted average gradient and hessian for the left child node (\\(I_L\\)) and right child node (\\(I_R\\)).\n2. Compute the weighted average gradient and hessian for the parent node (before splitting, \\(I\\)).\n3. The gain is then calculated by subtracting the sum of the weighted averages of the left and right nodes from the weighted average of the parent node.\n\nThis calculation helps in determining whether a split will improve the model's performance or not, considering both the reduction in loss and the complexity penalty due to overfitting.",
+      "retrieval_hit": 1.0,
+      "faithfulness": 0,
+      "completeness": 0,
+      "clarity": 0,
+      "consistency": 0.333,
+      "issues": "parse error"
+    }
+  ],
+  "summary": {
+    "avg_retrieval_hit": 0.45454545454545453,
+    "avg_faithfulness": 3.1818181818181817,
+    "avg_completeness": 3.090909090909091,
+    "avg_clarity": 3.727272727272727,
+    "avg_consistency": 0.42400000000000004
+  }
+}

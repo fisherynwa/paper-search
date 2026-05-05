@@ -1,43 +1,55 @@
-import argparse
-import textwrap
+import hydra
+from omegaconf import DictConfig, OmegaConf
 from paper_search_engine import PaperSearchEngine
+import logging
 
-parser = argparse.ArgumentParser(description='Semantic search over a research paper.')
-parser.add_argument('--pdf_url',    type=str, default='https://arxiv.org/pdf/1603.02754')
-parser.add_argument('--model',      type=str, default='BAAI/bge-large-en-v1.5')
-parser.add_argument('--max_length', type=int, default=128)
-parser.add_argument('--chunk_size', type=int, default=150)
-parser.add_argument('--overlap',    type=int, default=30)
-parser.add_argument('--top_k',      type=int, default=3)
-args = parser.parse_args()
+log = logging.getLogger(__name__)
 
-if __name__ == '__main__':
 
-    print(f'Loading engine — {args.model}...')
+@hydra.main(config_path="conf", config_name="config", version_base=None)
+def main(cfg: DictConfig):
+
+    log.info("Configuration:\n" + OmegaConf.to_yaml(cfg))
+
+    # build engine
     engine = PaperSearchEngine(
-        model_name=args.model,
-        pdf_url=args.pdf_url,
-        max_length=args.max_length,
-        chunk_size=args.chunk_size,
-        overlap=args.overlap
+        model_name      = cfg.model.embedding,
+        pdf_url         = cfg.pdf_url,
+        chunk_size      = cfg.retrieval.chunk_size,
+        overlap         = cfg.retrieval.overlap,
+        max_length      = cfg.retrieval.max_length,
+        use_contextual  = cfg.retrieval.use_contextual,
+        ollama_model    = cfg.model.ollama,
+        ollama_validator= cfg.model.validator,
+        prompts         = OmegaConf.to_container(cfg.generation.prompts, resolve=True),
     )
 
+    gen_options = {
+        "temperature":    cfg.generation.temperature,
+        "top_p":          cfg.generation.top_p,
+        "repeat_penalty": cfg.generation.repeat_penalty,
+        "seed":           cfg.generation.seed,
+    }
+
+    # example queries
     queries = [
-        'how does XGBoost handle missing values?',
-        'what is the regularized objective function in XGBoost?',
-        'how does XGBoost achieve parallelism?'
+        "How does XGBoost handle missing values?",
+        "What is the regularized objective function in XGBoost?",
+        "How does XGBoost achieve parallelism?",
     ]
 
     for query in queries:
-        print(f'\n{"=" * 70}')
-        print(f'Query: "{query}"')
-        print(f'{"=" * 70}')
+        log.info(f"\nQuery: {query}")
+        result = engine.answer_with_validation(
+            query,
+            top_k      = cfg.retrieval.top_k,
+            temperature= cfg.generation.temperature,
+        )
+        log.info(f"Answer:\n{result['answer']}")
+        log.info(f"Validation: {result['validation']}")
+        log.info(f"Chunks used: {result['chunks_used']}")
+        print("-" * 70)
 
-        # retrieval results
-        for r in engine.query(query, top_k=args.top_k):
-            print(f'  Score: {r["score"]:.4f}  |  Page: {r["page"]}')
-            print(f'  {textwrap.fill(r["text"][:400], width=65)}')
-            print('  ' + '-' * 65)
 
-        # RAG answerß
-        print(f'\n  Answer: {textwrap.fill(engine.answer(query, top_k=args.top_k), width=65)}')
+if __name__ == "__main__":
+    main()

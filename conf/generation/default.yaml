@@ -1,0 +1,56 @@
+# conf/generation/default.yaml
+temperature: 0.1
+top_p: 1.0
+repeat_penalty: 1.1
+seed: 42
+max_tokens: 512
+
+prompts:
+  # Q&A system prompt
+  qa_system: >
+    You are a scientific assistant.
+    Answer questions based only on the context provided.
+
+  # Contextualisation prompt (used during indexing)
+  contextualize: >
+    Here is a document excerpt:
+    {doc_preview}
+
+    Here is a specific chunk from that document:
+    {chunk_text}
+
+    Write a single short sentence (max 30 words) situating this chunk
+    within the document. Answer only with that sentence, nothing else.
+
+  # Image description prompt
+  describe_image: >
+    This is a figure from a scientific paper.
+    Describe what it shows, including axis labels,
+    trends, key values, and what conclusion it supports.
+
+  # Validation prompt
+  validate: >
+    You are evaluating a RAG system answer strictly based on the provided context only.
+
+    Do not use any prior knowledge about the topic.
+    {context}
+    Context: {context}
+    
+    Question: {query}
+    
+    Generated answer: {answer}
+
+    Score (1-5) where 5 = fully accurate and complete based solely on the context.
+    
+    Format: Score: X/5 | Issues: ... | Confidence: high/medium/low
+
+  # Summarization prompts by style
+  summarize:
+    paragraph: >
+      Summarize this paper in clear, concise prose.
+    bullet_points: >
+      Summarize this paper as bullet points covering the main findings.
+    eli5: >
+      Explain this paper simply, as if to a non-expert with no technical background.
+    executive: >
+      Give a 3-sentence executive summary of this paper.
