@@ -50,9 +50,8 @@ Evaluated on the **XGBoost paper** ([arXiv:1603.02754](https://arxiv.org/pdf/160
 
 ## Limitations
 
-- **Consistency on mathematical content** — models below 7B parameters produce variable answers on questions involving formulas or symbolic notation. Using `temperature=0.0` mitigates but does not eliminate this.
 - **Completeness on detail-heavy questions** — when the ground truth spans multiple chunks (e.g. hardware specs, full algorithm definitions), a single top-k retrieval may miss parts of the answer
-- **Auto-generated ground truth** — rapid evaluation on new papers uses LLM-generated Q&A pairs, not human-annotated. The **XGBoost benchmark** uses some human-reviewed pairs; results on other papers should be interpreted as indicative only
+- **Auto-generated ground truth** — rapid evaluation on new papers uses LLM-generated Q&A pairs, not human-annotated. The **XGBoost benchmark** uses some human-reviewed pairs; results on other papers should be interpreted as indicative only 
 - **Figure analysis quality** — local vision models (llava variants) struggle with scientific diagrams containing mathematical notation; even after some prompt tweaks
 ---
 
