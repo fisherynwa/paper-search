@@ -1,106 +1,84 @@
 # 🔍 PaperSearch — Semantic Search & RAG Pipeline
 
-A hybrid semantic search and question-answering system for research papers, combining dense vector retrieval (FAISS), lexical search (BM25), contextual embeddings, and local LLMs via Ollama.
+A hybrid semantic search and question-answering system for research papers, combining dense vector retrieval (FAISS), lexical search (BM25), contextual embeddings, and local LLMs via Ollama — with systematic benchmarking and preference data collection for future DPO training.
 
-There are three (good) candidates:
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/) [![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B.svg)](https://streamlit.io) [![Ollama](https://img.shields.io/badge/Ollama-local%20LLMs-black.svg)](https://ollama.com) [![FAISS](https://img.shields.io/badge/FAISS-vector%20search-blue.svg)](https://github.com/facebookresearch/faiss) [![BM25](https://img.shields.io/badge/BM25-lexical%20search-green.svg)](https://github.com/dorianbrown/rank_bm25) [![Hydra](https://img.shields.io/badge/Hydra-config-89b4fa.svg)](https://hydra.cc) [![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-yellow.svg)](https://huggingface.co/transformers)
 
-- ResNet: https://arxiv.org/pdf/1512.03385
-- Attention is All You Need: https://arxiv.org/pdf/1706.03762
-- BERT: https://arxiv.org/pdf/1810.04805
-
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B.svg)
-![Ollama](https://img.shields.io/badge/Ollama-local%20LLMs-black.svg)
-![FAISS](https://img.shields.io/badge/FAISS-vector%20search-blue.svg)
-![BM25](https://img.shields.io/badge/BM25-lexical%20search-green.svg)
-![Hydra](https://img.shields.io/badge/Hydra-config-89b4fa.svg)
-![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-yellow.svg)
-
-![PaperSearch App](./images/app_view.png)
+![App screenshot](images/demo_compressed.gif)
 
 ---
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    subgraph CURRENT["❌ Current Pipeline"]
-        A1[PDF] --> B1[Chunks]
-        B1 --> C1[BGE Embeddings]
-        C1 --> D1[FAISS Index]
-        D1 --> E1[Top-k Chunks]
-        E1 --> F1[Qwen Generation]
-        F1 --> G1[Answer]
-    end
-
-    subgraph IMPROVED["✅ Improved Pipeline"]
-        A2[PDF] --> B2[Chunks]
-        B2 --> C2[Qwen Contextualizer]
-        C2 --> D2[Contextual Chunks]
-        D2 --> E2[BGE Embeddings]
-        D2 --> F2[BM25 Index]
-        E2 --> G2[FAISS Search]
-        F2 --> H2[BM25 Search]
-        G2 --> I2[Rank Fusion]
-        H2 --> I2
-        I2 --> J2[Top-k Chunks]
-        J2 --> K2[Qwen Generation]
-        K2 --> L2[Answer]
-    end
-
-    style CURRENT fill:#1a1a2e,stroke:#e94560,color:#fff
-    style IMPROVED fill:#1a1a2e,stroke:#0f3460,color:#fff
-    style C2 fill:#e94560,color:#fff
-    style F2 fill:#0f3460,color:#fff
-    style I2 fill:#533483,color:#fff
 ```
+PDF → Chunks → [Qwen Contextualizer] → BGE Embeddings → FAISS ──┐
+                                     → BM25 Index    ────────────┤→ Rank Fusion → Top-k → Qwen Answer → Validator Score
+                                                                  └──────────────────────────────────────────────────────
+```
+
+The improved pipeline (toggled via `use_contextual`) enriches each chunk with an LLM-generated situating sentence before embedding, following [Anthropic's Contextual Retrieval](https://www.anthropic.com/engineering/contextual-retrieval).
 
 ---
 
 ## Key Features
 
 - **Hybrid Retrieval** — FAISS semantic search + BM25 lexical search fused via Reciprocal Rank Fusion
-- **Contextual Embeddings** — each chunk is enriched with an LLM-generated context sentence before embedding ([Anthropic Contextual Retrieval](https://www.anthropic.com/engineering/contextual-retrieval))
-- **Multi-turn Q&A** — conversational interface with history capping to avoid context dilution
+- **Contextual Embeddings** — each chunk enriched with an LLM-generated context sentence before embedding
+- **Multi-turn Q&A** — conversational interface with history
 - **Answer Validation** — optional second LLM pass scoring faithfulness, completeness, and clarity
-- **Figure Analysis** — extracts and describes figures using a vision model (llava:7b)
-- **Hydra Config** — all parameters managed via YAML, supports CLI overrides and multirun sweeps
-- **Systematic Benchmarking** — auto-generated and manual Q&A benchmarks with retrieval hit, faithfulness, completeness, clarity, and consistency metrics
-- **Preference Data Collection** — saves chosen/rejected answer pairs for future DPO training
-
+- **Figure Analysis** — extracts and describes figures from the PDF using a local vision model; structured prompt reduces hallucinations (cloud vision API recommended for best results);
+- **Hydra Config** — all parameters managed via YAML with CLI overrides and multirun sweeps
+- **Systematic Benchmarking** — auto-generated Q&A benchmarks with retrieval hit, faithfulness, completeness, clarity, and consistency metrics
 ---
 
-## Benchmarking Results (XGBoost paper)
+## Benchmark Results
 
-Best configuration found via systematic evaluation (`top_k=5`, `temperature=0.0`) (experiments performed on a laptop)
+Evaluated on the **XGBoost paper** ([arXiv:1603.02754](https://arxiv.org/pdf/1603.02754)) using **11 human-like Q&A pairs** with verified answers and relevant page numbers. Best configuration selected from multiple runs sweeping `chunk size, overlap, top_k, and temperature`. (for more info [`benchmark_results/`](./benchmark_results/).)
 
+| Metric | Score |
+|---|---|
+| Retrieval Hit Rate | **0.68** |
+| Faithfulness | **3.73 / 5** |
+| Completeness | **3.68 / 5** |
+| Clarity | **4.05 / 5** |
+| Consistency | **1.00** |
+
+
+**Best configuration:** `BAAI/bge-large-en-v1.5` · `qwen2.5:7b` · `chunk_size=150` · `overlap=50` · `top_k=5` · `temperature=0.0` · `use_contextual=true`
+
+Remark: I intend to use MLflow from now on.
+---
+
+## Limitations
+
+- **Consistency on mathematical content** — models below 7B parameters produce variable answers on questions involving formulas or symbolic notation. Using `temperature=0.0` mitigates but does not eliminate this.
+- **Completeness on detail-heavy questions** — when the ground truth spans multiple chunks (e.g. hardware specs, full algorithm definitions), a single top-k retrieval may miss parts of the answer
+- **Auto-generated ground truth** — rapid evaluation on new papers uses LLM-generated Q&A pairs, not human-annotated. The **XGBoost benchmark** uses some human-reviewed pairs; results on other papers should be interpreted as indicative only
+- **Figure analysis quality** — local vision models (llava variants) struggle with scientific diagrams containing mathematical notation; even after some prompt tweaks
 ---
 
 ## File Structure
 
 ```
-semantic_search/
-├── app.py                    # Streamlit web interface
-├── main.py                   # CLI entry point
-├── paper_search_engine.py    # core RAG engine
-├── benchmark.py              # evaluation runner
+paper-search/
+├── app.py                      # Streamlit web interface
+├── main.py                     # CLI entry point
+├── paper_search_engine.py      # core RAG engine
+├── Benchmark.py                # evaluation runner
 ├── conf/
-│   ├── config.yaml           # main Hydra config
+│   ├── config.yaml             # main Hydra config
 │   ├── model/
-│   │   ├── default.yaml      # BAAI/bge-large-en-v1.5 + qwen2.5:7b
-│   │   └── fast.yaml         # BGE-small + qwen2.5:3b
+│   │   ├── default.yaml        # BAAI/bge-large-en-v1.5 + qwen2.5:7b
+│   │   └── fast.yaml           # BGE-small + qwen2.5:3b
 │   ├── retrieval/
-│   │   └── default.yaml      # chunk_size=150, top_k=5, overlap=30
+│   │   └── default.yaml        # chunk_size=150, top_k=3, overlap=30
 │   └── generation/
-│       └── default.yaml      # temperature=0.0, prompts
+│       └── default.yaml        # temperature=0.1, prompts
 ├── benchmarks/
-│   └── xgboost_benchmark.yaml  # manual Q&A pairs for evaluation
-├── benchmark_results/        # timestamped JSON results per run
+│   └── *.yaml                  # Q&A pairs for evaluation
+├── benchmark_results/          # timestamped JSON results per run
 ├── preference_data/
-│   └── preferences.jsonl     # chosen/rejected pairs for DPO
-├── tests/
-│   └── test_paper_search_engine.py
+│   └── preferences.jsonl       # chosen/rejected pairs for DPO
 └── app_style/
     └── styles.css
 ```
@@ -109,42 +87,47 @@ semantic_search/
 
 ## Step-by-step Process
 
-1. **PDF Processing** — PDF URL → downloaded locally → split into overlapping word chunks with page references
+1. **PDF Processing** — PDF URL → streamed directly into memory (no local download) → split into overlapping word chunks with page references
 2. **Contextualisation** — each chunk enriched with a Qwen-generated situating sentence (optional, toggleable)
-3. **Embedding** — chunks embedded via `BAAI/bge-large-en-v1.5` (CLS token, L2-normalised)
+3. **Embedding** — chunks embedded via `BAAI/bge-large-en-v1.5` (mean pooling, L2-normalised)
 4. **Indexing** — vectors stored in FAISS `IndexFlatIP`; text stored in BM25Okapi
 5. **Query Processing** — user question embedded with the same model
 6. **Hybrid Retrieval** — FAISS top-k + BM25 top-k merged via Reciprocal Rank Fusion
-7. **Generation** — retrieved chunks + query + history → `qwen2.5:7b`
-8. **Validation** (optional) — generated answer → validator LLM → structured quality score
+7. **Generation** — retrieved chunks + query + conversation history → `qwen2.5:7b`
+8. **Validation** (optional) — generated answer → validator LLM → structured faithfulness/completeness/clarity score
 
 ---
 
 ## Setup
 
-### 1. Install uv (if missing)
+### 1. Install uv
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ### 2. Install dependencies
+
 ```bash
 uv sync
 ```
 
 ### 3. Install Ollama
+
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
 ### 4. Pull models
+
 ```bash
 ollama pull qwen2.5:7b
 ollama pull llama3.2:3b
-ollama pull llava:7b        # optional, for figure analysis
+ollama pull llava-llama3    # optional, for figure analysis
 ```
 
 ### 5. Start Ollama server
+
 ```bash
 ollama serve
 ```
@@ -154,25 +137,28 @@ ollama serve
 ## Usage
 
 ### Web interface
+
 ```bash
 TOKENIZERS_PARALLELISM=false streamlit run app.py
 ```
 
 ### CLI
+
 ```bash
 TOKENIZERS_PARALLELISM=false python main.py
 ```
 
 ### Run benchmark
+
 ```bash
 # default config
-TOKENIZERS_PARALLELISM=false python benchmark.py
+TOKENIZERS_PARALLELISM=false python Benchmark.py
 
 # override parameters
-TOKENIZERS_PARALLELISM=false python benchmark.py retrieval.top_k=5 generation.temperature=0.0
+TOKENIZERS_PARALLELISM=false python Benchmark.py retrieval.top_k=5 generation.temperature=0.0
 
 # multirun sweep
-TOKENIZERS_PARALLELISM=false python benchmark.py --multirun \
+TOKENIZERS_PARALLELISM=false python Benchmark.py --multirun \
   retrieval.top_k=3,5,7 \
   generation.temperature=0.0,0.1
 ```
@@ -181,29 +167,16 @@ TOKENIZERS_PARALLELISM=false python benchmark.py --multirun \
 
 ## Configuration
 
-All parameters are managed via Hydra YAML files in `conf/`. Key settings:
+All parameters managed via Hydra YAML files in `conf/`. 
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `retrieval.chunk_size` | 150 | Words per chunk |
-| `retrieval.overlap` | 30 | Overlap between chunks |
-| `retrieval.top_k` | 5 | Chunks retrieved per query |
-| `retrieval.use_contextual` | true | Contextual embeddings |
-| `generation.temperature` | 0.0 | LLM temperature |
-| `model.embedding` | BAAI/bge-large-en-v1.5 | Embedding model |
-| `model.ollama` | qwen2.5:7b | Generation model |
-| `model.validator` | llama3.2:3b | Validation model |
+Good candidate papers to try:
+
+- ResNet: https://arxiv.org/pdf/1512.03385
+- Attention Is All You Need: https://arxiv.org/pdf/1706.03762
+- BERT: https://arxiv.org/pdf/1810.04805
 
 ---
 
-## Requirements
-
-- Python 3.12+
-- 12GB RAM recommended (8GB minimum without contextual embeddings)
-- macOS (Apple Silicon supported), Linux, or Windows
-- Ollama installed and running
-
----
 
 ## Acknowledgements
 
@@ -220,4 +193,4 @@ All parameters are managed via Hydra YAML files in `conf/`. Key settings:
 
 ## License
 
-This project is licensed under the MIT License — see the LICENSE file for details.
+MIT License — see [LICENSE](./LICENSE) for details.

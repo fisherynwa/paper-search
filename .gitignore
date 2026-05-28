@@ -27,13 +27,11 @@ venv
 .DS_Store
 
 # gitignore
-.gitignore
-
-.venv/
-__pycache__/
 *.pdf
 preference_data/
 
 outputs/
 *.pyc
 .DS_Store
+
+manual_tests_the_code.ipynb

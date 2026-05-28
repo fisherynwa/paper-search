@@ -1,5 +1,5 @@
 # conf/generation/default.yaml
-temperature: 0.1
+temperature: 0.0
 top_p: 1.0
 repeat_penalty: 1.1
 seed: 42
@@ -25,8 +25,12 @@ prompts:
   # Image description prompt
   describe_image: >
     This is a figure from a scientific paper.
-    Describe what it shows, including axis labels,
-    trends, key values, and what conclusion it supports.
+    Identify: (1) the figure type (chart, diagram, table, architecture, etc.),
+    (2) all axis labels, units, and legend entries if present,
+    (3) the main trend or result shown,
+    (4) what conclusion it supports.
+    Do not speculate about anything not directly visible in the figure.
+    If you are uncertain about something, say so explicitly.
 
   # Validation prompt
   validate: >

@@ -42,7 +42,6 @@ cfg = OmegaConf.merge(
     OmegaConf.load(_base / "retrieval"  / "default.yaml"),
     OmegaConf.load(_base / "generation" / "default.yaml"),
 )
-# default PDF URL
 if "pdf_url" not in cfg:
     cfg.pdf_url = "https://arxiv.org/pdf/1603.02754"
 
@@ -63,7 +62,6 @@ def load_engine(model_name, pdf_url, chunk_size, overlap, max_length,
         ollama_validator = ollama_validator,
         prompts          = OmegaConf.to_container(cfg.prompts, resolve=True),
     )
-
 
 ##################################################################
 # sidebar — configuration
@@ -93,13 +91,22 @@ with st.sidebar:
         index=0
     )
 
-    chunk_size      = st.slider('Chunk size (words)',  50,  500, cfg.chunk_size,  step=25)
-    overlap         = st.slider('Overlap (words)',     10,  100, cfg.overlap,      step=5)
-    max_length      = st.slider('Max token length',    64,  512, cfg.max_length,   step=32)
-    top_k           = st.slider('Top-k results',        1,   10, cfg.top_k)
-    temperature     = st.slider('Generation temperature', 0.0, 1.0, cfg.temperature, step=0.05)
+    ollama_validator = st.selectbox(
+        'Validator model',
+        options=['llama3.2:3b', 'qwen2.5:3b', 'qwen2.5:7b'],
+        index=0,
+        help='Second LLM used to validate answer quality.'
+    )
 
-    use_contextual  = st.toggle(
+    chunk_size  = st.slider('Chunk size (words)',  50,  500, cfg.chunk_size,  step=25)
+    overlap     = st.slider('Overlap (words)',     10,  100, cfg.overlap,      step=5)
+    top_k       = st.slider('Top-k results',        1,   10, cfg.top_k)
+    temperature = st.slider('Generation temperature', 0.0, 1.0, cfg.temperature, step=0.05)
+
+    with st.expander('⚙️ Advanced'):
+        max_length = st.slider('Max token length', 64, 512, cfg.max_length, step=32)
+
+    use_contextual = st.toggle(
         'Contextual embeddings',
         value=cfg.use_contextual,
         help='Enriches each chunk with Qwen-generated context before embedding. Slower on first load.'
@@ -130,7 +137,9 @@ st.markdown('# 🔍 Paper Search')
 st.markdown('Semantic search and question answering over research papers.')
 st.markdown('---')
 
+##################################################################
 # load engine
+##################################################################
 engine = load_engine(
     model_name       = model_name,
     pdf_url          = pdf_url,
@@ -139,9 +148,13 @@ engine = load_engine(
     max_length       = max_length,
     use_contextual   = use_contextual,
     ollama_model     = ollama_model,
-    ollama_validator = cfg.validator,
+    ollama_validator = ollama_validator,
     prompts_key      = str(OmegaConf.to_container(cfg.prompts)),
 )
+
+# paper loaded status
+mode_label = "contextual" if use_contextual else "standard"
+st.success(f'✅ Paper indexed — {len(engine.chunks)} chunks ({mode_label}) · {model_name.split("/")[-1]} · {ollama_model}')
 
 ##################################################################
 # tabs
@@ -161,7 +174,6 @@ with tab1:
     # chat input
     if query := st.chat_input('Ask a question about the paper...'):
 
-        # show user message
         with st.chat_message('user'):
             st.markdown(query)
 
@@ -175,11 +187,15 @@ with tab1:
                         temperature = temperature,
                     )
 
-                    # show assistant answer
                     with st.chat_message('assistant'):
                         st.markdown(answer)
 
-                    # optional validation
+                        # source pages inline under the answer
+                        pages = sorted(set(r['page'] for r in results))
+                        pages_str = ', '.join(f'p.{p}' for p in pages)
+                        st.caption(f'📄 Sources: {pages_str}')
+
+                    # validation — shown inline as a metric, not buried in expander
                     if show_validation:
                         with st.spinner('Validating...'):
                             validation = engine.answer_with_validation(
@@ -187,11 +203,19 @@ with tab1:
                                 top_k       = top_k,
                                 temperature = temperature,
                             )
-                        with st.expander('🔍 Answer validation', expanded=False):
-                            st.text(validation['validation'])
-                            st.markdown(f'**Chunks used:** {validation["chunks_used"]}')
+                        val_text = validation['validation']
+                        # extract score if present
+                        score_line = next((l for l in val_text.split('\n') if 'Score' in l), None)
+                        col1, col2 = st.columns([1, 3])
+                        with col1:
+                            if score_line:
+                                st.markdown(f'<div class="result-card"><div class="score">🔍 Validation</div><div class="text">{score_line}</div></div>', unsafe_allow_html=True)
+                        with col2:
+                            with st.expander('Full validation report'):
+                                st.text(val_text)
+                                st.markdown(f'**Chunks used:** {validation["chunks_used"]}')
 
-                    # show retrieved chunks
+                    # retrieved chunks
                     with st.expander('📚 Retrieved chunks', expanded=False):
                         for r in results:
                             st.markdown(f"""
@@ -201,14 +225,12 @@ with tab1:
                             </div>
                             """, unsafe_allow_html=True)
 
-                    # update history
                     st.session_state.history.append({'role': 'user',      'content': query})
                     st.session_state.history.append({'role': 'assistant', 'content': answer})
 
                 except Exception as e:
                     st.error(f'Ollama error: {e} — make sure `ollama serve` is running.')
             else:
-                # retrieval only — no generation
                 results = engine.query(query, top_k=top_k)
                 with st.chat_message('assistant'):
                     st.markdown('**Retrieved chunks** (RAG disabled):')
@@ -229,38 +251,42 @@ with tab2:
 
     vision_model = st.selectbox(
         'Vision model',
-        options=['llava:7b'],
-        help='Make sure the selected model is pulled in Ollama.'
+        options=['llava-llama3', 'llava:7b'],
+        help='Make sure the selected model is pulled via `ollama pull llava-llama3`'
     )
 
     if st.button('Extract & describe figures'):
         with st.spinner('Extracting figures from PDF...'):
             try:
-                doc    = fitz.open(engine.pdf_path)
+                import urllib.request
+                if engine.pdf_path.startswith("http"):
+                    with urllib.request.urlopen(engine.pdf_path) as response:
+                        pdf_data = response.read()
+                    doc = fitz.open(stream=pdf_data, filetype="pdf")
+                else:
+                    doc = fitz.open(engine.pdf_path)
+
                 images = []
                 for page_num, page in enumerate(doc, start=1):
                     for img in page.get_images():
                         xref = img[0]
                         pix  = fitz.Pixmap(doc, xref)
-                        # skip tiny images (icons, bullets)
                         if pix.width < 100 or pix.height < 100:
                             continue
-                        # convert CMYK to RGB if needed
                         if pix.n > 4:
                             pix = fitz.Pixmap(fitz.csRGB, pix)
                         images.append({
-                            'bytes':    pix.tobytes('png'),
-                            'b64':      base64.b64encode(pix.tobytes('png')).decode(),
-                            'page':     page_num,
-                            'width':    pix.width,
-                            'height':   pix.height,
+                            'bytes':  pix.tobytes('png'),
+                            'b64':    base64.b64encode(pix.tobytes('png')).decode(),
+                            'page':   page_num,
+                            'width':  pix.width,
+                            'height': pix.height,
                         })
 
                 if not images:
                     st.warning('No figures found in this PDF.')
                 else:
                     st.success(f'Found {len(images)} figure(s). Describing with {vision_model}...')
-                    descriptions = []
                     for i, img in enumerate(images):
                         with st.spinner(f'Describing figure {i+1}/{len(images)}...'):
                             response = ollama.chat(
@@ -273,9 +299,7 @@ with tab2:
                                 options={"temperature": 0.0}
                             )
                             description = response['message']['content']
-                            descriptions.append(description)
 
-                        # display image + description side by side
                         col1, col2 = st.columns([1, 2])
                         with col1:
                             st.image(img['bytes'], caption=f'Page {img["page"]}')

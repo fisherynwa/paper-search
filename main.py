@@ -11,6 +11,8 @@ def main(cfg: DictConfig):
 
     log.info("Configuration:\n" + OmegaConf.to_yaml(cfg))
 
+    pdf_url = input("Paste your PDF URL: ").strip()
+    
     # build engine
     engine = PaperSearchEngine(
         model_name      = cfg.model.embedding,
