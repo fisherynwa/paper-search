@@ -46,7 +46,6 @@ Evaluated on the **XGBoost paper** ([arXiv:1603.02754](https://arxiv.org/pdf/160
 
 **Best configuration:** `BAAI/bge-large-en-v1.5` · `qwen2.5:7b` · `chunk_size=150` · `overlap=50` · `top_k=5` · `temperature=0.0` · `use_contextual=true`
 
-Remark: I intend to use MLflow from now on.
 ---
 
 ## Limitations
