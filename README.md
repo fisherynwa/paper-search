@@ -1,6 +1,6 @@
 # 🔍 PaperSearch — Semantic Search & RAG Pipeline
 
-A hybrid semantic search and question-answering system for research papers, combining dense vector retrieval (FAISS), lexical search (BM25), contextual embeddings, and local LLMs via Ollama — with systematic benchmarking and preference data collection for future DPO training.
+A hybrid semantic search and question-answering system for research papers, combining dense vector retrieval (FAISS), lexical search (BM25), contextual embeddings, and local LLMs via Ollama with systematic benchmarking.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/) [![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B.svg)](https://streamlit.io) [![Ollama](https://img.shields.io/badge/Ollama-local%20LLMs-black.svg)](https://ollama.com) [![FAISS](https://img.shields.io/badge/FAISS-vector%20search-blue.svg)](https://github.com/facebookresearch/faiss) [![BM25](https://img.shields.io/badge/BM25-lexical%20search-green.svg)](https://github.com/dorianbrown/rank_bm25) [![Hydra](https://img.shields.io/badge/Hydra-config-89b4fa.svg)](https://hydra.cc) [![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-yellow.svg)](https://huggingface.co/transformers)
 
