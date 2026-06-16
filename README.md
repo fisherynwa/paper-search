@@ -41,11 +41,12 @@ Evaluated on the **XGBoost paper** ([arXiv:1603.02754](https://arxiv.org/pdf/160
 | Faithfulness | **3.73 / 5** * |
 | Completeness | **3.68 / 5** * |
 | Clarity | **4.05 / 5** |
-| Consistency | **1.00** *|
+| Consistency | **1.00** **|
 
 
 *One question (q2) failed validator parsing and was scored 0 across all 3 metrics, pulling these 
-averages down; a corrected re-score would likely raise both.
+averages down; a corrected re-score would likely raise both. \\
+
 **The consistency metric currently returns a single value for every question in a run rather than varying 
 per-question — this is a known issue with how it's computed, not a claim that the system is perfectly 
 consistent.
