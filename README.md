@@ -38,21 +38,34 @@ Evaluated on the **XGBoost paper** ([arXiv:1603.02754](https://arxiv.org/pdf/160
 | Metric | Score |
 |---|---|
 | Retrieval Hit Rate | **0.68** |
-| Faithfulness | **3.73 / 5** |
-| Completeness | **3.68 / 5** |
+| Faithfulness | **3.73 / 5** * |
+| Completeness | **3.68 / 5** * |
 | Clarity | **4.05 / 5** |
-| Consistency | **1.00** |
+| Consistency | **1.00** *|
 
 
-**Best configuration:** `BAAI/bge-large-en-v1.5` · `qwen2.5:7b` · `chunk_size=150` · `overlap=50` · `top_k=5` · `temperature=0.0` · `use_contextual=true`
+*One question (q2) failed validator parsing and was scored 0 across all 3 metrics, pulling these 
+averages down; a corrected re-score would likely raise both.
+**The consistency metric currently returns a single value for every question in a run rather than varying 
+per-question — this is a known issue with how it's computed, not a claim that the system is perfectly 
+consistent.
+
+Selected configuration:`BAAI/bge-large-en-v1.5` · `qwen2.5:7b` · `chunk_size=150` · `overlap=50` · `top_k=5` · `temperature=0.0` · `use_contextual=true`
+
+chunk_size, overlap, and top_k were chosen by sweeping retrieval hit rate across configurations (see 
+benchmark_results/); this combination had the highest hit rate (0.68) of those tested. temperature=0.0 was 
+chosen for reproducibility rather than a measured quality advantage over temperature=0.1.
 
 ---
 
 ## Limitations
 
-- **Completeness on detail-heavy questions** — when the ground truth spans multiple chunks (e.g. hardware specs, full algorithm definitions), a single top-k retrieval may miss parts of the answer
+- **Completeness on detail-heavy questions** — when the ground truth spans multiple chunks (e.g., hardware specs, full algorithm definitions), a single top-k retrieval may miss parts of the answer
 - **Auto-generated ground truth** — rapid evaluation on new papers uses LLM-generated Q&A pairs, not human-annotated. The **XGBoost benchmark** uses some human-reviewed pairs; results on other papers should be interpreted as indicative only 
 - **Figure analysis quality** — local vision models (llava variants) struggle with scientific diagrams containing mathematical notation; even after some prompt tweaks
+- **Validator parsing** — the validation pass occasionally fails to parse its own output, zeroing out that 
+  question's scores instead of retrying. Consistency also currently returns one value per run rather than 
+  per question. Both are open issues, not reflections of true system behavior.
 ---
 
 ## File Structure
