@@ -83,7 +83,7 @@ paper-search/
 │   │   ├── default.yaml        # BAAI/bge-large-en-v1.5 + qwen2.5:7b
 │   │   └── fast.yaml           # BGE-small + qwen2.5:3b
 │   ├── retrieval/
-│   │   └── default.yaml        # chunk_size=150, top_k=3, overlap=30
+│   │   └── default.yaml        
 │   └── generation/
 │       └── default.yaml        # temperature=0.1, prompts
 ├── benchmarks/
@@ -179,7 +179,7 @@ TOKENIZERS_PARALLELISM=false python Benchmark.py --multirun \
 
 ## Configuration
 
-All parameters managed via Hydra YAML files in `conf/`. 
+All parameters are managed via Hydra YAML files in `conf/`. 
 
 Good candidate papers to try:
 
